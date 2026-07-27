@@ -56,12 +56,6 @@
   };
   const TAB_PHASE_MS = 1000;
   const NAV_FADE_MS = 300;
-  const IS_TOUCH_DEVICE =
-    navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
-  const SAVE_DATA = Boolean(navigator.connection?.saveData);
-  const HEALTH_TIMEOUT_MS = IS_TOUCH_DEVICE ? 15000 : 8000;
-  const CHAT_TIMEOUT_MS = IS_TOUCH_DEVICE ? 55000 : 40000;
-  const SCREEN_DIR = "./assets/screens";
 
   /*
    * ==================== DeepSeek API 配置区 ====================
@@ -248,9 +242,6 @@
   let toastTimer = 0;
   let fitFrame = 0;
   let navigationLoaderTimer = 0;
-  let routeWarmTimer = 0;
-  let agentWarmupPromise = null;
-  let agentWarmupResult = null;
   let stableViewportHeight = Math.max(
     window.innerHeight || 0,
     document.documentElement.clientHeight || 0,
@@ -258,15 +249,13 @@
   );
   let isTransitioning = false;
   const imageCache = new Map();
-  const resolvedSourceCache = new Map();
 
   const state = loadSession();
   ensureInitialState();
 
   function screen(nodeId, figmaName) {
     return {
-      sources: [`${SCREEN_DIR}/${nodeId}.png`],
-      cacheKey: nodeId,
+      src: `./assets/screens/${nodeId}.png`,
       nodeId: nodeId.replace("-", ":"),
       figmaName
     };
@@ -601,11 +590,16 @@
     el.loader.classList.remove("loader--navigation");
   }
 
-  function loadImageSource(src, priority = "auto") {
-    return new Promise((resolve, reject) => {
+  function preload(key) {
+    const resolved = resolveScreenKey(key);
+    const config = SCREENS[resolved];
+    if (!config) return Promise.reject(new Error(`未知页面：${key}`));
+    if (imageCache.has(config.src)) return imageCache.get(config.src);
+
+    const promise = new Promise((resolve, reject) => {
       const image = new Image();
       const timeout = setTimeout(
-        () => reject(new Error(`载入超时：${src}`)),
+        () => reject(new Error(`载入超时：${config.src}`)),
         30000
       );
       const finish = (callback) => {
@@ -615,44 +609,15 @@
         callback();
       };
       image.decoding = "async";
-      if ("fetchPriority" in image) image.fetchPriority = priority;
-      image.onload = () => finish(() => resolve(src));
-      image.onerror = () => finish(() => reject(new Error(`无法载入 ${src}`)));
-      image.src = src;
+      image.fetchPriority = "high";
+      image.onload = () => finish(() => resolve(config.src));
+      image.onerror = () =>
+        finish(() => reject(new Error(`无法载入 ${config.src}`)));
+      image.src = config.src;
     });
-  }
-
-  function preload(key, options = {}) {
-    const resolved = resolveScreenKey(key);
-    const config = SCREENS[resolved];
-    if (!config) return Promise.reject(new Error(`未知页面：${key}`));
-    if (resolvedSourceCache.has(config.cacheKey)) {
-      return Promise.resolve(resolvedSourceCache.get(config.cacheKey));
-    }
-    if (imageCache.has(config.cacheKey)) return imageCache.get(config.cacheKey);
-
-    const priority = options.priority || "auto";
-    const promise = (async () => {
-      let lastError = null;
-      for (const src of config.sources) {
-        try {
-          const loaded = await loadImageSource(src, priority);
-          resolvedSourceCache.set(config.cacheKey, loaded);
-          return loaded;
-        } catch (error) {
-          lastError = error;
-        }
-      }
-      throw lastError || new Error(`无法载入页面资源：${config.figmaName}`);
-    })();
-
-    imageCache.set(config.cacheKey, promise);
-    promise.catch(() => imageCache.delete(config.cacheKey));
+    imageCache.set(config.src, promise);
+    promise.catch(() => imageCache.delete(config.src));
     return promise;
-  }
-
-  function screenSource(config) {
-    return resolvedSourceCache.get(config.cacheKey) || config.sources[0];
   }
 
   async function showScreen(logicalKey, options = {}) {
@@ -669,7 +634,7 @@
     if (kind !== "none") beginNavigationLoading();
 
     try {
-      await preload(logicalKey, { priority: "high" });
+      await preload(logicalKey);
     } catch (error) {
       isTransitioning = false;
       endNavigationLoading();
@@ -733,8 +698,6 @@
       isTransitioning = false;
     }, duration);
 
-    scheduleLikelyNextScreen(logicalKey);
-
     if (logicalKey === "triage-a1" || logicalKey === "triage-b1") {
       const branch = logicalKey.includes("-a") ? "a" : "b";
       autoTimer = setTimeout(
@@ -768,7 +731,7 @@
 
     const frame = document.createElement("img");
     frame.className = "screen-frame";
-    frame.src = screenSource(config);
+    frame.src = config.src;
     frame.alt = "";
     frame.dataset.screen = logicalKey;
     frame.dataset.resolvedScreen = resolved;
@@ -794,11 +757,11 @@
     frame.append(card);
 
     const header = createProfileOwnerFragment(
-      screenSource(config),
+      config.src,
       "profile-owner-frame__fragment profile-owner-frame__fragment--header"
     );
     const details = createProfileOwnerFragment(
-      screenSource(config),
+      config.src,
       "profile-owner-frame__fragment profile-owner-frame__fragment--details"
     );
     const tail = document.createElement("span");
@@ -1544,8 +1507,7 @@
       input.removeAttribute("aria-busy");
       send.disabled = false;
       if (result.failed) {
-        setChatStatus(status, statusText, "error", "Agent 连接失败，请重新发送");
-        showToast("未连接到真实 Agent，请检查网络后重试");
+        setChatStatus(status, statusText, "error", "AI 暂时不可用");
       } else if (result.offline) {
         setChatStatus(status, statusText, "local", "本地演示回复");
         showToast("真实 AI 未连接，当前回复来自本地演示逻辑");
@@ -1671,77 +1633,38 @@
     }
   }
 
-  function sleep(milliseconds) {
-    return new Promise((resolve) => setTimeout(resolve, milliseconds));
-  }
-
-  async function probeAgentConnection() {
+  async function checkAgentConnection(status, text) {
     const base = apiUrl("/api/health");
     if (!base) {
-      return { ok: false, state: "local", label: "待填写 DeepSeek Worker 地址" };
-    }
-
-    const response = await fetchWithTimeout(
-      base,
-      {
-        method: "GET",
-        mode: "cors",
-        cache: "no-store",
-        credentials: "omit"
-      },
-      HEALTH_TIMEOUT_MS
-    );
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
-    if (!(data.ok || data.configured || data.service)) {
-      return { ok: false, state: "local", label: "API Key 未配置" };
-    }
-    return {
-      ok: true,
-      state: "online",
-      label: `${data.provider || data.service || "AI"} 已连接`
-    };
-  }
-
-  function primeAgentConnection(force = false) {
-    if (!force && agentWarmupPromise) return agentWarmupPromise;
-    agentWarmupPromise = probeAgentConnection()
-      .then((result) => {
-        agentWarmupResult = result;
-        return result;
-      })
-      .catch((error) => {
-        agentWarmupResult = {
-          ok: false,
-          state: "error",
-          label: "Agent 暂时未连接",
-          error
-        };
-        return agentWarmupResult;
-      });
-    return agentWarmupPromise;
-  }
-
-  async function checkAgentConnection(status, text) {
-    setChatStatus(status, text, "checking", "正在连接 AI");
-    let result = await primeAgentConnection();
-
-    // 首次预连接失败时，在用户真正进入 Agent 页面后再主动重试一次。
-    if (!result.ok && result.state === "error") {
-      await sleep(600);
-      result = await primeAgentConnection(true);
-    }
-
-    if (result.ok) {
-      setChatStatus(status, text, result.state, result.label);
+      setChatStatus(status, text, "local", "待填写 DeepSeek Worker 地址");
       return;
     }
 
-    console.info(
-      "[RK1] AI 代理状态检查失败",
-      result.error?.message || result.label
-    );
-    setChatStatus(status, text, result.state, result.label);
+    try {
+      const response = await fetchWithTimeout(
+        base,
+        {
+          method: "GET",
+          credentials: "omit"
+        },
+        5000
+      );
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      if (data.ok || data.configured || data.service) {
+        setChatStatus(
+          status,
+          text,
+          "online",
+          `${data.provider || data.service || "AI"} 已连接`
+        );
+      } else {
+        setChatStatus(status, text, "local", "API Key 未配置");
+      }
+    } catch (error) {
+      console.info("[RK1] AI 代理状态检查失败", error.message);
+      setChatStatus(status, text, "error", "AI 代理未启动");
+    }
   }
 
   async function requestAgentReply(userText) {
@@ -1769,16 +1692,13 @@
         base,
         {
           method: "POST",
-          mode: "cors",
-          cache: "no-store",
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json"
+            "Content-Type": "application/json"
           },
           body: JSON.stringify(payload),
           credentials: "omit"
         },
-        CHAT_TIMEOUT_MS
+        35000
       );
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.reply) {
@@ -1790,11 +1710,10 @@
         offline: false
       };
     } catch (error) {
-      console.error("[RK1] Agent 请求失败", error);
+      console.error(error);
       return {
-        reply: "Agent 暂时未连接成功，请检查网络后重新发送。",
-        provider: "DeepSeek",
-        offline: false,
+        reply: "暂时无法连接 AI，请稍后重试。",
+        offline: true,
         failed: true
       };
     }
@@ -1860,31 +1779,7 @@
     el.loader.classList.remove("is-hidden");
   }
 
-  async function removeLegacyOfflineCache() {
-    // 仅用于清理此前测试版可能遗留的 Service Worker 与 RK1 缓存。
-    // 当前正式版不会注册新的 Service Worker，也不需要 sw.js。
-    try {
-      if ("serviceWorker" in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(
-          keys
-            .filter((key) => key.startsWith("rk1-"))
-            .map((key) => caches.delete(key))
-        );
-      }
-    } catch (error) {
-      console.info("[RK1] 旧离线缓存清理失败", error);
-    }
-  }
-
   async function initialize() {
-    removeLegacyOfflineCache();
-    // 与首屏图片并行预连接 Worker，不阻塞页面显示，也不等待进入 Agent 页。
-    primeAgentConnection();
     fitDevice();
     window.addEventListener("resize", scheduleFitDevice, { passive: true });
     window.addEventListener("orientationchange", scheduleFitDevice, {
@@ -1907,55 +1802,35 @@
     }
   }
 
-  function likelyNextScreen(key) {
-    const branch = CONDITIONS[state.condition].branch;
-    if (key === healthRoot()) return `triage-${branch}1`;
-    if (key === `triage-${branch}1`) return `triage-${branch}2`;
-    if (/^triage-[ab][345]$/.test(key)) return `triage-${branch}6`;
-    if (key === `triage-${branch}6`) return `plan-${branch}7`;
-    if (/^plan-[ab](8|9|10)$/.test(key)) return `journey-${branch}11`;
-    if (AUTO_NEXT[key]) return AUTO_NEXT[key];
-    if (REPORT_SCREENS.has(key)) return healthRoot();
-    return null;
-  }
-
-  function scheduleLikelyNextScreen(key) {
-    clearTimeout(routeWarmTimer);
-    if (SAVE_DATA || key === "agent-chat") return;
-    const next = likelyNextScreen(key);
-    if (!next) return;
-    routeWarmTimer = setTimeout(() => {
-      preload(next, { priority: "low" }).catch(() => {});
-    }, IS_TOUCH_DEVICE ? 1800 : 700);
-  }
-
   function warmLikelyScreens() {
-    // 移动端不再一次预载多个页面，避免与 Agent Worker 抢占连接。
-    if (IS_TOUCH_DEVICE || SAVE_DATA) return;
-
     const branch = CONDITIONS[state.condition].branch;
     const keys = [
+      healthRoot(),
       `triage-${branch}1`,
+      `triage-${branch}2`,
+      `plan-${branch}7`,
       "agent-chat",
       "remote",
       "profile"
     ];
+    const touchConstrained =
+      navigator.maxTouchPoints > 0 || matchMedia("(pointer: coarse)").matches;
+    const selectedKeys = touchConstrained ? keys.slice(0, 2) : keys;
     const warm = async () => {
-      for (const key of keys) {
+      for (const key of selectedKeys) {
         try {
-          await preload(key, { priority: "low" });
+          await preload(key);
         } catch (error) {
           console.info("[RK1] 后台预载失败，将在点击时重试", key, error.message);
         }
       }
     };
     if ("requestIdleCallback" in window) {
-      requestIdleCallback(() => warm(), { timeout: 2600 });
+      requestIdleCallback(() => warm(), { timeout: 1800 });
     } else {
-      setTimeout(() => warm(), 1600);
+      setTimeout(() => warm(), 500);
     }
   }
-
 
   initialize();
 })();
