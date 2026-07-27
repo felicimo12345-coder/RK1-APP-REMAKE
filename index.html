@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#060606" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>RK1 · Pet Agent Demo</title>
+    <link rel="preconnect" href="https://rk1-deepseek-worker.felicimo12345.workers.dev" crossorigin />
+    <link rel="dns-prefetch" href="//rk1-deepseek-worker.felicimo12345.workers.dev" />
+    <link rel="stylesheet" href="./styles.css?v=20260727-final-png-nosw-v1" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="RK1 宠物智能代诊 Demo">
+      <p class="desktop-caption">RK1 · PET AGENT DEMO</p>
+
+      <div class="device-wrap">
+        <section
+          id="device"
+          class="device"
+          aria-live="polite"
+          aria-label="应用界面"
+        >
+          <div id="screenStage" class="screen-stage" aria-hidden="true"></div>
+          <div id="navStage" class="nav-stage" aria-hidden="true">
+            <div class="nav-glass">
+              <span class="nav-glass__lens nav-glass__lens--top"></span>
+              <span class="nav-glass__lens nav-glass__lens--bottom"></span>
+              <span class="nav-glass__shine"></span>
+            </div>
+            <div id="navIconStage" class="nav-icon-stage"></div>
+          </div>
+          <div id="dynamicLayer" class="dynamic-layer"></div>
+          <div id="hotspotLayer" class="hotspot-layer"></div>
+
+          <div id="loader" class="loader">
+            <span class="loader__spinner" aria-hidden="true"></span>
+            <span id="loaderText">正在载入设计画面…</span>
+          </div>
+
+          <div id="toast" class="toast" role="status"></div>
+        </section>
+      </div>
+
+      <p class="desktop-hint">
+        402 × 874 · Figma prototype
+      </p>
+    </main>
+
+    <template id="chatTemplate">
+      <section class="agent-chat" aria-label="AI 对话">
+        <div class="agent-chat__meta">
+          <span id="chatStatus" class="agent-chat__status" data-state="checking">
+            <span class="agent-chat__status-dot" aria-hidden="true"></span>
+            <span id="chatStatusText">正在连接 AI</span>
+          </span>
+          <button id="chatClear" class="agent-chat__clear" type="button">
+            清空对话
+          </button>
+        </div>
+        <div
+          id="chatMessages"
+          class="agent-chat__messages"
+          role="log"
+          aria-live="polite"
+          aria-label="与 AI 助手的对话记录"
+        ></div>
+        <button
+          id="chatJump"
+          class="agent-chat__jump"
+          type="button"
+          aria-label="回到最新消息"
+        >
+          回到最新 ↓
+        </button>
+        <form id="chatForm" class="agent-chat__composer">
+          <textarea
+            id="chatInput"
+            rows="1"
+            maxlength="1200"
+            inputmode="text"
+            enterkeyhint="send"
+            autocomplete="off"
+            autocapitalize="sentences"
+            spellcheck="true"
+            aria-label="输入消息"
+            placeholder="点击输入症状，或长按说话…"
+          ></textarea>
+          <button id="chatSend" type="submit" aria-label="发送消息">
+            <span class="agent-chat__send-icon" aria-hidden="true">＋</span>
+          </button>
+        </form>
+      </section>
+    </template>
+
+    <script src="./app.js?v=20260727-final-png-nosw-v1" defer></script>
+  </body>
+</html>

@@ -1,0 +1,1088 @@
+:root {
+  --device-width: 402px;
+  --device-height: 874px;
+  --device-scale: 1;
+  --nav-top: 770px;
+  --nav-height: 104px;
+  --keyboard-inset: 0px;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.2, 0.8, 0.2, 1);
+  color-scheme: dark;
+  font-family:
+    "DengXian", "等线", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #060606;
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  -webkit-touch-callout: none;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+.app-shell {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  width: 100dvw;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding:
+    max(10px, env(safe-area-inset-top))
+    max(10px, env(safe-area-inset-right))
+    max(10px, env(safe-area-inset-bottom))
+    max(10px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% 35%, #111 0, #080808 36%, #050505 74%),
+    #060606;
+}
+
+.desktop-caption,
+.desktop-hint {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.36);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.desktop-hint {
+  letter-spacing: 0.08em;
+}
+
+.device-wrap {
+  width: calc(var(--device-width) * var(--device-scale));
+  height: calc(var(--device-height) * var(--device-scale));
+  flex: 0 0 auto;
+}
+
+.device {
+  position: relative;
+  width: var(--device-width);
+  height: var(--device-height);
+  overflow: hidden;
+  background: #060606;
+  transform: scale(var(--device-scale));
+  transform-origin: top left;
+  isolation: isolate;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.72),
+    0 0 0 1px rgba(255, 255, 255, 0.055);
+}
+
+.screen-stage,
+.nav-stage,
+.dynamic-layer,
+.hotspot-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.screen-stage {
+  z-index: 1;
+  overflow: hidden;
+  background: #060606;
+}
+
+/*
+ * 底部导航不再通过 clip-path 裁切整张页面 PNG。
+ * 主页面始终保持完整的 402 × 874，固定玻璃栏和图标单独置顶。
+ */
+.nav-stage {
+  z-index: 15;
+  overflow: visible;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+/* Figma 原版底部跑道：固定位置、深灰中性玻璃、无额外蓝色镜片。 */
+.nav-stage::before {
+  display: none;
+}
+
+.nav-glass {
+  position: absolute;
+  top: 770px;
+  left: 38px;
+  z-index: 2;
+  width: 326px;
+  height: 77px;
+  overflow: hidden;
+  border: 0.55px solid rgba(255, 255, 255, 0.52);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(72, 72, 72, 0.76) 0%,
+      rgba(42, 42, 42, 0.78) 48%,
+      rgba(54, 54, 54, 0.72) 100%
+    ),
+    rgba(37, 37, 37, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 18px rgba(255, 255, 255, 0.025),
+    0 8px 22px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(20px) saturate(128%);
+  -webkit-backdrop-filter: blur(20px) saturate(128%);
+}
+
+.nav-glass::before {
+  position: absolute;
+  inset: 1px;
+  content: "";
+  border-radius: inherit;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    rgba(255, 255, 255, 0) 42%,
+    rgba(0, 0, 0, 0.08)
+  );
+  pointer-events: none;
+}
+
+.nav-glass__lens,
+.nav-glass__shine {
+  display: none;
+}
+
+.nav-icon-stage,
+.nav-icon-frame {
+  position: absolute;
+  inset: 0;
+}
+
+.nav-icon-stage {
+  z-index: 3;
+}
+
+.nav-icon-frame {
+  opacity: 1;
+  user-select: none;
+  will-change: opacity;
+}
+
+.nav-icon-frame--fade-in {
+  animation: navFadeIn 300ms ease both;
+}
+
+.nav-icon-frame--fade-out {
+  animation: navFadeOut 300ms ease both;
+}
+
+.nav-item {
+  position: absolute;
+  top: 776px;
+  z-index: 1;
+  display: grid;
+  width: 67px;
+  height: 65px;
+  place-items: center;
+  border-radius: 50%;
+  color: rgba(170, 170, 170, 0.82);
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.16));
+}
+
+.nav-item[data-tab="health"] { left: 42px; top: 778px; }
+.nav-item[data-tab="chat"] { left: 127px; top: 778px; }
+.nav-item[data-tab="remote"] { left: 209px; }
+.nav-item[data-tab="profile"] { left: 291px; }
+
+.nav-item::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  border: 0.65px solid transparent;
+  border-radius: inherit;
+  opacity: 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 4px 12px rgba(0, 0, 0, 0.24);
+}
+
+.nav-item.is-active {
+  color: #fff;
+}
+
+.nav-item.is-active::before {
+  opacity: 1;
+}
+
+.nav-item[data-tab="health"].is-active::before,
+.nav-item[data-tab="chat"].is-active::before {
+  border-color: rgba(235, 167, 80, 0.56);
+  background: linear-gradient(180deg, #edb563 0%, #e99c31 58%, #d77f08 100%);
+}
+
+.nav-item[data-tab="remote"].is-active::before {
+  border-color: rgba(94, 230, 241, 0.58);
+  background: linear-gradient(180deg, #53d9e4 0%, #2cc4d2 100%);
+}
+
+.nav-item[data-tab="profile"].is-active::before {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: linear-gradient(180deg, #e9a653 0%, #b8b990 43%, #2cc4d2 100%);
+}
+
+.nav-item svg {
+  width: 24px;
+  height: 24px;
+  overflow: visible;
+  fill: currentColor;
+}
+
+.nav-item[data-tab="health"] svg {
+  width: 29px;
+  height: 29px;
+}
+
+.nav-item[data-tab="chat"] svg {
+  width: 25px;
+  height: 25px;
+}
+
+.nav-item[data-tab="remote"] svg {
+  width: 25px;
+  height: 25px;
+}
+
+.nav-item[data-tab="profile"] svg {
+  width: 24px;
+  height: 24px;
+}
+
+.nav-garage-icon {
+  fill: none !important;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes navFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes navFadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* 004-A3：只修复该页旧导出图的纵向错位和底部截断。 */
+.screen-frame--profile-owner {
+  overflow: hidden;
+  background: #060606;
+}
+
+.profile-owner-frame__card {
+  position: absolute;
+  top: 177px;
+  left: 16px;
+  width: 370px;
+  height: 681px;
+  border-radius: 43px;
+  background: linear-gradient(
+    180deg,
+    rgba(197, 197, 197, 0.75) 0%,
+    rgba(95, 95, 95, 0.15) 100%
+  );
+}
+
+.profile-owner-frame__fragment {
+  position: absolute;
+  left: 0;
+  width: 402px;
+  overflow: hidden;
+}
+
+.profile-owner-frame__fragment img {
+  position: absolute;
+  left: 0;
+  width: 402px;
+  height: 874px;
+  max-width: none;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.profile-owner-frame__fragment--header {
+  top: 0;
+  height: 310px;
+}
+
+.profile-owner-frame__fragment--header img {
+  top: 35px;
+}
+
+.profile-owner-frame__fragment--details {
+  top: 310px;
+  height: 400px;
+}
+
+.profile-owner-frame__fragment--details img {
+  top: -292px;
+}
+
+.profile-owner-frame__tail {
+  position: absolute;
+  top: 710px;
+  left: 16px;
+  width: 370px;
+  height: 148px;
+  border-radius: 0 0 43px 43px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(197, 197, 197, 0.75) 0%,
+      rgba(95, 95, 95, 0.15) 100%
+    )
+    0 -533px / 370px 681px no-repeat;
+}
+
+.dynamic-layer {
+  z-index: 10;
+  pointer-events: none;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+}
+
+/* AI 对话页在 iOS Safari 中不再依赖“祖先 none、子元素 auto”的命中规则。 */
+.dynamic-layer--interactive,
+.dynamic-layer--interactive .agent-chat {
+  pointer-events: auto;
+}
+
+.hotspot-layer {
+  z-index: 20;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+/* 对话页需要让透明热点层穿透到 textarea；底栏热点自身仍可点击。 */
+.hotspot-layer--passthrough {
+  pointer-events: none;
+}
+
+.screen-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 1;
+  object-fit: fill;
+  transform: translate3d(0, 0, 0);
+  user-select: none;
+  -webkit-user-drag: none;
+  will-change: opacity, transform, filter;
+}
+
+.screen-frame--motion-in {
+  animation: screenMotionIn var(--transition-duration, 560ms)
+    var(--ease-standard) both;
+}
+
+.screen-frame--motion-out {
+  animation: screenMotionOut var(--transition-duration, 560ms)
+    var(--ease-standard) both;
+}
+
+.screen-frame--expand-in {
+  animation: screenExpandIn var(--transition-duration, 520ms)
+    var(--ease-spring) both;
+}
+
+.screen-frame--locked-in {
+  animation: screenLockedIn var(--transition-duration, 500ms)
+    var(--ease-standard) both;
+}
+
+.screen-frame--tab-out {
+  z-index: 2;
+  animation: screenTabOut 1000ms var(--ease-standard) both;
+}
+
+.screen-frame--tab-waiting {
+  z-index: 1;
+  transform: translate3d(0, 100%, 0);
+}
+
+.screen-frame--tab-in {
+  z-index: 2;
+  animation: screenTabIn 1000ms var(--ease-standard) both;
+}
+
+.dynamic-layer--tab-out {
+  animation: screenTabOut 1000ms var(--ease-standard) both;
+}
+
+.dynamic-layer--tab-waiting {
+  transform: translate3d(0, 100%, 0);
+}
+
+.dynamic-layer--tab-in {
+  animation: screenTabIn 1000ms var(--ease-standard) both;
+}
+
+@keyframes screenMotionIn {
+  from {
+    opacity: 0;
+    transform: translate3d(
+      var(--enter-x, 0),
+      var(--enter-y, 0),
+      0
+    );
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screenMotionOut {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(
+      var(--exit-x, 0),
+      var(--exit-y, 0),
+      0
+    );
+  }
+}
+
+@keyframes screenExpandIn {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 10px, 0) scale(0.992);
+    filter: blur(0.8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes screenLockedIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  58% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screenTabOut {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 100%, 0);
+  }
+}
+
+@keyframes screenTabIn {
+  from {
+    transform: translate3d(0, 100%, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.hotspot {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.hotspot:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9);
+  outline-offset: -3px;
+}
+
+.hotspot:active {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+html[data-debug="true"] .hotspot {
+  background: rgba(255, 66, 66, 0.12);
+  outline: 1px dashed rgba(255, 97, 97, 0.8);
+}
+
+.loader {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  background: #060606;
+  transition:
+    opacity 360ms ease,
+    visibility 360ms ease;
+}
+
+.loader.is-hidden {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader--navigation {
+  background: rgba(6, 6, 6, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.loader__spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  border-top-color: #2cc4d2;
+  border-radius: 50%;
+  animation: spin 900ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 102px;
+  z-index: 80;
+  max-width: 320px;
+  min-height: 38px;
+  padding: 10px 17px;
+  border: 0.5px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 17px;
+  text-align: center;
+  background: rgba(34, 34, 34, 0.82);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: translate(-50%, 12px);
+  visibility: hidden;
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease,
+    visibility 220ms ease;
+  pointer-events: none;
+}
+
+.toast.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+/* 002-C1：沿用 Figma 顶部身份区与底栏，动态重绘连续消息流。 */
+.agent-chat {
+  position: absolute;
+  inset: 0;
+  --composer-height: 59px;
+  pointer-events: none;
+}
+
+/*
+ * 彻底盖住 002-C1 原始 PNG 内烘焙的玻璃消息框和输入框。
+ * 动态消息与动态输入框再分别叠在该黑色遮罩上。
+ */
+.agent-chat::before {
+  position: absolute;
+  top: 196px;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 0;
+  content: "";
+  background: #060606;
+  box-shadow: 0 -5px 0 #060606;
+}
+
+.agent-chat__meta {
+  position: absolute;
+  top: 184px;
+  left: 22px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 358px;
+  height: 24px;
+  pointer-events: auto;
+}
+
+.agent-chat__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.agent-chat__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #9b9b9b;
+  box-shadow: 0 0 0 3px rgba(155, 155, 155, 0.1);
+}
+
+.agent-chat__status[data-state="online"] {
+  color: rgba(98, 225, 235, 0.82);
+}
+
+.agent-chat__status[data-state="online"] .agent-chat__status-dot {
+  background: #45d6e2;
+  box-shadow: 0 0 0 3px rgba(69, 214, 226, 0.13);
+}
+
+.agent-chat__status[data-state="local"] {
+  color: rgba(234, 166, 72, 0.82);
+}
+
+.agent-chat__status[data-state="local"] .agent-chat__status-dot {
+  background: #eaa648;
+  box-shadow: 0 0 0 3px rgba(234, 166, 72, 0.13);
+}
+
+.agent-chat__status[data-state="error"] .agent-chat__status-dot {
+  background: #cf6f63;
+  box-shadow: 0 0 0 3px rgba(207, 111, 99, 0.13);
+}
+
+.agent-chat__clear {
+  margin: 0;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.38);
+  font-size: 10px;
+  line-height: 1;
+  background: transparent;
+  cursor: pointer;
+}
+
+.agent-chat__clear:active {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.agent-chat__messages {
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  top: 208px;
+  bottom: calc(121px + var(--composer-height) + 10px + var(--keyboard-inset));
+  width: 402px;
+  padding: 12px 16px 20px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  color: #fff;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(6, 6, 6, 0.99) 0,
+      #060606 30px,
+      #060606 calc(100% - 34px),
+      rgba(6, 6, 6, 0.93) 100%
+    ),
+    #060606;
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  pointer-events: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.agent-chat__messages::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 14px;
+  animation: bubbleIn 300ms var(--ease-spring) both;
+}
+
+.chat-row--assistant,
+.chat-row--system {
+  justify-content: flex-start;
+}
+
+.chat-row--user {
+  justify-content: flex-end;
+}
+
+.chat-avatar {
+  display: grid;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  margin-bottom: 2px;
+  place-items: center;
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 10px;
+  line-height: 1;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(76, 219, 229, 0.54), transparent 52%),
+    rgba(38, 52, 54, 0.92);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.24);
+}
+
+.chat-bubble {
+  width: fit-content;
+  min-width: 52px;
+  max-width: 286px;
+  padding: 10px 14px 12px;
+  border: 0.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px 18px 18px 7px;
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 7px 22px rgba(0, 0, 0, 0.22);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.chat-row--assistant .chat-bubble {
+  background:
+    linear-gradient(135deg, rgba(57, 57, 57, 0.97), rgba(66, 66, 66, 0.9)),
+    #393939;
+  backdrop-filter: blur(18px) saturate(126%);
+  -webkit-backdrop-filter: blur(18px) saturate(126%);
+}
+
+.chat-row--user .chat-bubble {
+  max-width: 258px;
+  border-color: rgba(235, 167, 80, 0.19);
+  border-radius: 18px 18px 7px 18px;
+  background:
+    linear-gradient(135deg, rgba(75, 49, 24, 0.98), rgba(69, 46, 24, 0.98)),
+    #493119;
+}
+
+.chat-row--system .chat-bubble {
+  background: rgba(44, 196, 210, 0.14);
+}
+
+.chat-bubble__sender {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.chat-bubble__body {
+  margin: 0;
+  white-space: pre-wrap;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.chat-bubble__time {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 9px;
+  line-height: 1;
+  text-align: right;
+}
+
+.chat-bubble--typing .chat-bubble__body {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
+}
+
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
+  animation: typing 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 140ms;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 280ms;
+}
+
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typing {
+  0%,
+  65%,
+  100% {
+    opacity: 0.32;
+    transform: translateY(0);
+  }
+  32% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.agent-chat__jump {
+  position: absolute;
+  right: 24px;
+  bottom: calc(130px + var(--composer-height) + var(--keyboard-inset));
+  z-index: 5;
+  padding: 7px 11px;
+  border: 0.5px solid rgba(255, 255, 255, 0.24);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 10px;
+  line-height: 1;
+  background: rgba(32, 32, 32, 0.9);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
+    visibility 180ms ease;
+  pointer-events: auto;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.agent-chat__jump.is-visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.agent-chat__composer {
+  position: absolute;
+  z-index: 3;
+  left: 16px;
+  bottom: calc(111px + var(--keyboard-inset));
+  display: flex;
+  align-items: flex-end;
+  width: 370px;
+  min-height: 59px;
+  max-height: 92px;
+  padding: 9px 9px 9px 19px;
+  border: 0.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 31px;
+  background: rgba(31, 31, 31, 0.97);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 24px rgba(0, 0, 0, 0.24);
+  pointer-events: auto;
+  touch-action: manipulation;
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  transition:
+    min-height 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.agent-chat__composer textarea {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  max-height: 72px;
+  margin: 0;
+  padding: 10px 6px 7px 0;
+  resize: none;
+  overflow-y: auto;
+  border: 0;
+  outline: 0;
+  color: rgba(255, 255, 255, 0.94);
+  /* iOS Safari 在小于 16px 时会自动放大页面，导致热点与视觉位置错位。 */
+  font-size: 16px;
+  line-height: 20px;
+  background: transparent;
+  pointer-events: auto;
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+  scrollbar-width: none;
+}
+
+.agent-chat__composer textarea::-webkit-scrollbar {
+  display: none;
+}
+
+.agent-chat__composer textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+  text-align: left;
+}
+
+.agent-chat__composer button {
+  display: grid;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  margin: 2px 0;
+  padding: 0;
+  place-items: center;
+  border: 0.5px solid rgba(255, 255, 255, 0.48);
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.agent-chat__composer.is-ready button {
+  color: #161616;
+  border-color: rgba(255, 255, 255, 0.65);
+  background: linear-gradient(180deg, #50d8e4, #2cc4d2);
+}
+
+.agent-chat__composer.is-ready {
+  border-color: rgba(80, 216, 228, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 28px rgba(15, 113, 123, 0.14);
+}
+
+.agent-chat__composer button:active {
+  transform: scale(0.93);
+}
+
+.agent-chat__composer.is-busy {
+  opacity: 0.72;
+}
+
+.agent-chat__composer.is-busy button {
+  cursor: wait;
+}
+
+@media (max-width: 520px), (max-height: 950px) {
+  .desktop-caption,
+  .desktop-hint {
+    display: none;
+  }
+
+  .app-shell {
+    gap: 0;
+    padding: 0;
+  }
+
+  .device {
+    box-shadow: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
