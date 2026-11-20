@@ -1647,7 +1647,7 @@
           method: "GET",
           credentials: "omit"
         },
-        5000
+        20000
       );
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
@@ -1834,3 +1834,4 @@
 
   initialize();
 })();
+
